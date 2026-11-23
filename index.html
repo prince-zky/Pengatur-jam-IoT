@@ -1,0 +1,1139 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyberpunk IoT Clock Dashboard</title>
+    <style>
+      :root {
+        --bg-1: #070b14;
+        --bg-2: #0d1728;
+        --bg-3: #140d1f;
+        --panel: rgba(10, 16, 26, 0.82);
+        --panel-strong: rgba(16, 23, 33, 0.96);
+        --line: rgba(119, 234, 255, 0.2);
+        --line-strong: rgba(119, 234, 255, 0.45);
+        --text: #ebfeff;
+        --muted: #9ccfe1;
+        --cyan: #70f1ff;
+        --cyan-soft: #bdfdff;
+        --purple: #a86cff;
+        --pink: #ff5fd2;
+        --green: #7effb5;
+        --yellow: #ffd166;
+        --ticker-brightness: 1;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(112, 241, 255, 0.16), transparent 25%),
+          radial-gradient(circle at top right, rgba(168, 108, 255, 0.18), transparent 30%),
+          radial-gradient(circle at bottom left, rgba(255, 95, 210, 0.12), transparent 30%),
+          linear-gradient(135deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+      }
+
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 30px 18px;
+        background-image:
+          linear-gradient(rgba(112, 241, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(112, 241, 255, 0.05) 1px, transparent 1px),
+          radial-gradient(circle at top left, rgba(112, 241, 255, 0.18), transparent 25%),
+          radial-gradient(circle at top right, rgba(168, 108, 255, 0.18), transparent 30%),
+          linear-gradient(135deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+        background-size: 38px 38px, 38px 38px, auto, auto, auto;
+      }
+
+      .dashboard {
+        width: min(1260px, 100%);
+        min-height: 760px;
+        background: linear-gradient(160deg, rgba(12, 20, 30, 0.9), rgba(7, 10, 17, 0.88));
+        border: 1px solid rgba(112, 241, 255, 0.25);
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 1px rgba(112, 241, 255, 0.08),
+          0 32px 90px rgba(0, 0, 0, 0.58),
+          0 0 28px rgba(112, 241, 255, 0.14),
+          inset 0 0 32px rgba(112, 241, 255, 0.04);
+        backdrop-filter: blur(10px);
+      }
+
+      .main-panel {
+        width: 100%;
+        min-height: 760px;
+        background: rgba(8, 14, 22, 0.72);
+        transition: filter 0.2s ease, opacity 0.2s ease;
+      }
+
+      .dashboard.logged-out .main-panel {
+        filter: blur(3px);
+        opacity: 0.45;
+        pointer-events: none;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 22px 28px 20px;
+        border-bottom: 1px solid rgba(112, 241, 255, 0.16);
+        background: linear-gradient(180deg, rgba(11, 18, 28, 0.92), rgba(8, 13, 20, 0.8));
+      }
+
+      .title-label {
+        color: var(--muted);
+        font-size: 0.68rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .title-wrap h1 {
+        margin: 6px 0 0;
+        font-size: clamp(1.4rem, 2vw, 2.3rem);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .online-badge {
+        padding: 9px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(112, 241, 255, 0.42);
+        background: rgba(112, 241, 255, 0.08);
+        color: var(--cyan-soft);
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .auth-btn {
+        border: 1px solid rgba(112, 241, 255, 0.28);
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.2s ease;
+      }
+
+      .login-btn {
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: #06131e;
+      }
+
+      .logout-btn {
+        background: rgba(168, 108, 255, 0.06);
+        color: var(--text);
+      }
+
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1.4fr;
+        gap: 22px;
+        padding: 24px;
+      }
+
+      .panel {
+        position: relative;
+        background: linear-gradient(180deg, rgba(12, 22, 33, 0.98), rgba(8, 13, 20, 0.96));
+        border: 1px solid rgba(112, 241, 255, 0.2);
+        border-radius: 22px;
+        padding: 22px;
+        overflow: hidden;
+        box-shadow:
+          inset 0 0 18px rgba(112, 241, 255, 0.04),
+          0 0 20px rgba(112, 241, 255, 0.04),
+          0 14px 30px rgba(2, 8, 14, 0.35);
+      }
+
+      .panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(112, 241, 255, 0.04), transparent 32%, rgba(168, 108, 255, 0.08));
+        pointer-events: none;
+      }
+
+      .panel-header,
+      .clock-box,
+      .stats-grid,
+      .settings-form,
+      .field-grid,
+      .button-row,
+      .ticker-panel,
+      .info-grid,
+      .info-card {
+        position: relative;
+        z-index: 1;
+      }
+
+      .eyebrow {
+        color: var(--muted);
+        font-size: 0.68rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .clock-box {
+        margin-top: 18px;
+        padding: 18px 18px 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(112, 241, 255, 0.28);
+        background: linear-gradient(135deg, rgba(112, 241, 255, 0.08), rgba(11, 18, 26, 0.88));
+        box-shadow: inset 0 0 22px rgba(112, 241, 255, 0.08), 0 0 26px rgba(112, 241, 255, 0.05), 0 10px 24px rgba(7, 15, 22, 0.3);
+      }
+
+      .time-text {
+        font-weight: 800;
+        font-size: clamp(2.1rem, 3vw, 3.3rem);
+        letter-spacing: 0.08em;
+        color: var(--cyan-soft);
+        text-shadow: 0 0 18px rgba(112, 241, 255, 0.75), 0 0 32px rgba(112, 241, 255, 0.3);
+      }
+
+      .date-text {
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: var(--green);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .context-box {
+        margin-top: 18px;
+        padding: 16px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(112, 241, 255, 0.2);
+        background: linear-gradient(135deg, rgba(112, 241, 255, 0.08), rgba(168, 108, 255, 0.05));
+      }
+
+      .context-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 0.66rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .context-box strong {
+        display: block;
+        font-size: 1.3rem;
+        margin-bottom: 6px;
+      }
+
+      .context-box p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.74rem;
+        line-height: 1.6;
+      }
+
+      .stat-box,
+      .info-card {
+        padding: 16px 14px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .stat-label,
+      .info-label {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 0.66rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+      }
+
+      .cyan { color: var(--cyan-soft); }
+      .green { color: var(--green); }
+
+      .settings-form {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      input, textarea, button {
+        font: inherit;
+      }
+
+      input[type="time"], textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(7, 13, 18, 0.9);
+        color: var(--text);
+        padding: 14px 16px;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--cyan);
+      }
+
+      input[type="time"]:focus, textarea:focus {
+        border-color: rgba(112, 241, 255, 0.9);
+        box-shadow: 0 0 0 3px rgba(112, 241, 255, 0.12), 0 0 18px rgba(112, 241, 255, 0.08);
+      }
+
+      textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary-btn {
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: #06131e;
+        box-shadow: 0 0 22px rgba(112, 241, 255, 0.26);
+      }
+
+      .primary-btn:hover {
+        box-shadow: 0 0 28px rgba(112, 241, 255, 0.35), 0 10px 22px rgba(168, 108, 255, 0.2);
+      }
+
+      .ghost-btn {
+        background: rgba(168, 108, 255, 0.06);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+
+      .ticker-panel {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-height: 120px;
+        margin-top: 22px;
+        border-radius: 18px;
+        border: 1px solid rgba(112, 241, 255, 0.3);
+        background: linear-gradient(180deg, rgba(16, 26, 37, 0.95), rgba(6, 11, 17, 0.95));
+        box-shadow: inset 0 0 24px rgba(112, 241, 255, 0.06), 0 0 22px rgba(112, 241, 255, 0.06);
+        overflow: hidden;
+      }
+
+      .ticker-clock {
+        min-width: 180px;
+        padding: 0 18px;
+        color: var(--cyan-soft);
+        border-right: 1px solid rgba(112, 241, 255, 0.25);
+        font-size: clamp(1.4rem, 2vw, 2.3rem);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-align: center;
+        text-shadow: 0 0 18px rgba(112, 241, 255, 0.75);
+        filter: brightness(var(--ticker-brightness));
+      }
+
+      .marquee-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .ticker-track {
+        position: relative;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        gap: 32px;
+        width: max-content;
+        min-width: 100%;
+        height: 100%;
+        padding: 0 18px;
+        font-size: clamp(1.06rem, 1.8vw, 1.7rem);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--cyan-soft);
+        text-shadow: 0 0 18px rgba(112, 241, 255, 0.7);
+        animation: ticker 8s linear infinite;
+        animation-timing-function: linear;
+        filter: brightness(var(--ticker-brightness));
+      }
+
+      .ticker-track span {
+        display: inline-block;
+        white-space: nowrap;
+      }
+
+      .ticker-track .message-only {
+        color: var(--cyan-soft);
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .mini-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .settings-form label,
+      .auth-form label {
+        font-weight: 600;
+      }
+
+      .mini-kpi {
+        padding: 14px 12px;
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(112, 241, 255, 0.06), rgba(9, 16, 24, 0.84));
+        border: 1px solid rgba(112, 241, 255, 0.2);
+        box-shadow: inset 0 0 10px rgba(112, 241, 255, 0.03), 0 8px 18px rgba(0, 0, 0, 0.15);
+      }
+
+      .mini-kpi .mini-label {
+        display: block;
+        color: var(--muted);
+        font-size: 0.58rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .mini-kpi strong {
+        display: block;
+        font-size: 1.15rem;
+        font-weight: 800;
+      }
+
+      .mini-kpi .good {
+        color: var(--green);
+      }
+
+      .mini-kpi .warn {
+        color: var(--yellow);
+      }
+
+      .mini-kpi .cyan {
+        color: var(--cyan-soft);
+      }
+
+      .info-card strong {
+        display: inline-block;
+        font-size: 1.08rem;
+        font-weight: 700;
+      }
+
+      .info-card.wide {
+        grid-column: 1 / -1;
+      }
+
+      @keyframes ticker {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+
+      .auth-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 5, 11, 0.72);
+        backdrop-filter: blur(8px);
+        z-index: 50;
+      }
+
+      .auth-overlay.hidden {
+        display: none;
+      }
+
+      .auth-panel {
+        position: relative;
+        width: min(440px, calc(100% - 24px));
+        padding: 22px 22px 20px;
+        border-radius: 26px;
+        border: 1px solid rgba(112, 241, 255, 0.3);
+        background: linear-gradient(180deg, rgba(11, 18, 30, 0.98), rgba(6, 10, 16, 0.98));
+        box-shadow:
+          0 0 0 1px rgba(112, 241, 255, 0.08),
+          0 0 26px rgba(112, 241, 255, 0.12),
+          0 20px 60px rgba(0, 0, 0, 0.45),
+          inset 0 0 28px rgba(112, 241, 255, 0.04);
+        overflow: hidden;
+      }
+
+      .auth-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(112, 241, 255, 0.08), transparent 30%, rgba(168, 108, 255, 0.09));
+        pointer-events: none;
+      }
+
+      .auth-header {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .auth-panel h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .auth-status {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(126, 255, 181, 0.35);
+        background: rgba(126, 255, 181, 0.08);
+        color: var(--green);
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .auth-form {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .auth-form label {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 0.62rem;
+        letter-spacing: 0.14em;
+      }
+
+      .password-wrap {
+        position: relative;
+      }
+
+      .auth-form input {
+        width: 100%;
+        border: 1px solid rgba(112, 241, 255, 0.2);
+        border-radius: 12px;
+        background: rgba(7, 12, 18, 0.9);
+        color: var(--text);
+        padding: 12px 46px 12px 14px;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .auth-form input:focus {
+        border-color: rgba(112, 241, 255, 0.9);
+        box-shadow: 0 0 0 3px rgba(112, 241, 255, 0.12);
+      }
+
+      .toggle-password {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .auth-message {
+        min-height: 20px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255, 95, 210, 0.08);
+        border: 1px solid rgba(255, 95, 210, 0.24);
+        color: #ffc3ef;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: 0.2s ease;
+      }
+
+      .auth-message.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .auth-form button {
+        margin-top: 6px;
+        border-radius: 14px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: #06131e;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow: 0 0 22px rgba(112, 241, 255, 0.2);
+      }
+
+      @media (max-width: 900px) {
+        .content-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .panel {
+          padding: 18px;
+        }
+
+        .mini-kpis {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        body {
+          padding: 18px 12px;
+        }
+
+        .dashboard {
+          border-radius: 18px;
+        }
+
+        .topbar {
+          padding: 16px 18px;
+        }
+
+        .topbar-actions {
+          width: 100%;
+          justify-content: flex-end;
+        }
+
+        .field-grid,
+        .stats-grid,
+        .info-grid,
+        .mini-kpis {
+          grid-template-columns: 1fr;
+        }
+
+        .panel {
+          padding: 16px;
+          border-radius: 18px;
+        }
+
+        .clock-box,
+        .ticker-panel {
+          border-radius: 16px;
+        }
+
+        .ticker-panel {
+          flex-direction: column;
+          align-items: stretch;
+          padding: 10px;
+        }
+
+        .ticker-clock {
+          border-right: none;
+          border-bottom: 1px solid rgba(112, 241, 255, 0.2);
+          min-width: auto;
+          padding: 10px 0;
+        }
+
+        .button-row {
+          flex-direction: column;
+        }
+
+        .button-row button,
+        .auth-btn {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard" id="dashboard">
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="title-wrap">
+            <div class="title-label">System Overview</div>
+            <h1>Pengatur Jam Running Text</h1>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" id="loginBtn" class="auth-btn login-btn">Login</button>
+            <button type="button" id="logoutBtn" class="auth-btn logout-btn">Logout</button>
+          </div>
+        </header>
+
+        <section class="content-grid">
+          <div class="panel left-panel">
+            <div class="panel-header">
+              <span class="eyebrow">Realtime Clock</span>
+            </div>
+
+            <div class="clock-box">
+              <div id="clock" class="time-text">00:00:00</div>
+              <div id="date" class="date-text">Senin, 1 Januari 2026</div>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-box" style="grid-column: 1 / -1;">
+                <span class="stat-label">Kecerahan</span>
+                <strong id="brightnessValue" class="stat-value cyan">75%</strong>
+              </div>
+            </div>
+
+            <form id="settingsForm" class="settings-form">
+              <div class="field-grid">
+                <label>
+                  Waktu Ticker
+                  <input id="targetTime" type="time" value="15:30" required />
+                </label>
+
+                <label>
+                  Kecepatan
+                  <input id="speedRange" type="range" min="5" max="30" step="1" value="18" />
+                </label>
+              </div>
+
+              <label>
+                Zona Waktu
+                <select id="timezoneSelect" style="width:100%; border:1px solid var(--line); border-radius:14px; background: rgba(7,13,18,0.9); color: var(--text); padding: 14px 16px; outline:none;">
+                  <option value="WIT">WIT (UTC+9)</option>
+                  <option value="WIB">WIB (UTC+7)</option>
+                  <option value="WITA">WITA (UTC+8)</option>
+                </select>
+              </label>
+
+              <label>
+                Kecerahan
+                <input id="brightnessRange" type="range" min="20" max="100" step="1" value="75" />
+              </label>
+
+              <label>
+                Ketebalan Teks
+                <input id="fontWeightRange" type="range" min="300" max="900" step="100" value="800" />
+              </label>
+
+              <label>
+                Tulisan
+                <textarea id="messageInput">Siaga 24 Jam • Sistem monitoring aktif</textarea>
+              </label>
+
+              <div class="button-row">
+                <button type="submit" class="primary-btn">Simpan</button>
+                <button type="button" id="resetBtn" class="ghost-btn">Reset</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel right-panel">
+            <div class="panel-header">
+              <span class="eyebrow">Running Text</span>
+            </div>
+
+            <div class="ticker-panel">
+              <div id="tickerClock" class="ticker-clock">15:30</div>
+              <div class="marquee-wrap">
+                <div id="tickerTrack" class="ticker-track">
+                  <span class="message-only">Siaga 24 Jam • Sistem monitoring aktif</span>
+                  <span class="message-only">Siaga 24 Jam • Sistem monitoring aktif</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="info-grid">
+              <div class="info-card">
+                <span class="info-label">Target Jam</span>
+                <strong id="targetOutput">15:30</strong>
+              </div>
+              <div class="info-card">
+                <span class="info-label">Speed</span>
+                <strong id="speedOutput">18s</strong>
+              </div>
+              <div class="info-card wide">
+                <span class="info-label">Pesan Aktif</span>
+                <strong id="messageOutput">Siaga 24 Jam • Sistem monitoring aktif</strong>
+              </div>
+            </div>
+
+            <div class="mini-kpis">
+              <div class="mini-kpi">
+                <span class="mini-label">Suhu</span>
+                <strong id="tempValue" class="good">24°C</strong>
+              </div>
+              <div class="mini-kpi">
+                <span class="mini-label">Kelembapan</span>
+                <strong id="humidityValue" class="cyan">58%</strong>
+              </div>
+              <div class="mini-kpi">
+                <span class="mini-label">Koneksi</span>
+                <strong class="cyan">Stable</strong>
+              </div>
+              <div class="mini-kpi">
+                <span class="mini-label">Status</span>
+                <strong class="warn">Online</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="authOverlay" class="auth-overlay">
+      <div class="auth-panel">
+        <div class="auth-header">
+          <h2>Secure Login</h2>
+          <span class="auth-status">Online</span>
+        </div>
+        <form id="authForm" class="auth-form">
+          <label>
+            Username
+            <input id="usernameInput" type="text" placeholder="Masukkan username" required />
+          </label>
+          <label>
+            Password
+            <div class="password-wrap">
+              <input id="passwordInput" type="password" placeholder="Masukkan password" required />
+              <button type="button" id="togglePasswordBtn" class="toggle-password">Lihat</button>
+            </div>
+          </label>
+          <div id="authMessage" class="auth-message" aria-live="polite"></div>
+          <button type="submit">Masuk</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const clockEl = document.getElementById('clock');
+      const dateEl = document.getElementById('date');
+      const brightnessValue = document.getElementById('brightnessValue');
+      const brightnessRange = document.getElementById('brightnessRange');
+      const fontWeightRange = document.getElementById('fontWeightRange');
+      const timezoneSelect = document.getElementById('timezoneSelect');
+      const targetTimeInput = document.getElementById('targetTime');
+      const speedRange = document.getElementById('speedRange');
+      const messageInput = document.getElementById('messageInput');
+      const targetOutput = document.getElementById('targetOutput');
+      const speedOutput = document.getElementById('speedOutput');
+      const messageOutput = document.getElementById('messageOutput');
+      const tickerTrack = document.getElementById('tickerTrack');
+      const tickerClock = document.getElementById('tickerClock');
+      const settingsForm = document.getElementById('settingsForm');
+      const resetBtn = document.getElementById('resetBtn');
+      const loginBtn = document.getElementById('loginBtn');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const authOverlay = document.getElementById('authOverlay');
+      const authForm = document.getElementById('authForm');
+      const usernameInput = document.getElementById('usernameInput');
+      const passwordInput = document.getElementById('passwordInput');
+      const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+      const authMessage = document.getElementById('authMessage');
+      const dashboard = document.getElementById('dashboard');
+      const tempValue = document.getElementById('tempValue');
+      const humidityValue = document.getElementById('humidityValue');
+      let panelSeconds = 0;
+
+      function pad(value) {
+        return String(value).padStart(2, '0');
+      }
+
+      function getStatusLabel(targetTime) {
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const [targetHour, targetMinute] = targetTime.split(':').map(Number);
+        const targetMinutes = targetHour * 60 + targetMinute;
+
+        if (currentMinutes === targetMinutes) {
+          return 'On Schedule';
+        }
+
+        return currentMinutes > targetMinutes ? 'Delayed' : 'Standby';
+      }
+
+      function setPanelClockFromInput() {
+        const [hour, minute] = (targetTimeInput.value || '15:30').split(':').map(Number);
+        panelSeconds = (hour * 3600) + (minute * 60);
+        updatePanelClockDisplay();
+      }
+
+      function updatePanelClockDisplay() {
+        const hour = Math.floor(panelSeconds / 3600) % 24;
+        const minute = Math.floor((panelSeconds % 3600) / 60);
+        const second = panelSeconds % 60;
+        tickerClock.textContent = `${pad(hour)}:${pad(minute)}:${pad(second)}`;
+        panelSeconds = (panelSeconds + 1) % 86400;
+      }
+
+      function updateBrightness() {
+        const brightness = Number(brightnessRange.value) || 75;
+        const brightnessFactor = (brightness / 100).toFixed(2);
+
+        brightnessValue.textContent = `${brightness}%`;
+        document.documentElement.style.setProperty('--ticker-brightness', brightnessFactor);
+        tickerTrack.style.filter = `brightness(${brightnessFactor})`;
+        tickerClock.style.filter = `brightness(${brightnessFactor})`;
+      }
+
+      function showAuthError(message) {
+        authMessage.textContent = message;
+        authMessage.classList.add('show');
+      }
+
+      function hideAuthError() {
+        authMessage.textContent = '';
+        authMessage.classList.remove('show');
+      }
+
+      function setLoggedState(isLoggedIn) {
+        dashboard.classList.toggle('logged-out', !isLoggedIn);
+        authOverlay.classList.toggle('hidden', isLoggedIn);
+        loginBtn.style.display = isLoggedIn ? 'none' : 'inline-flex';
+        logoutBtn.style.display = isLoggedIn ? 'inline-flex' : 'none';
+        if (isLoggedIn) {
+          hideAuthError();
+        }
+      }
+
+      function updateTemperature() {
+        const now = new Date();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        const second = now.getSeconds();
+
+        const cycle = Math.sin(((hour * 60 + minute + second / 60) / 60) * Math.PI);
+        const temp = 24 + (Math.sin((hour - 12) / 2) * 6) + (cycle * 2.5);
+        const rounded = temp.toFixed(1);
+
+        tempValue.textContent = `${rounded}°C`;
+        tempValue.classList.toggle('good', Number(rounded) <= 30);
+        tempValue.classList.toggle('warn', Number(rounded) > 30);
+      }
+
+      function updateHumidity() {
+        const now = new Date();
+        const tempText = tempValue.textContent.replace('°C', '');
+        const temp = Number(tempText) || 24;
+        const humidity = Math.max(35, Math.min(90, Math.round(58 + (24 - temp) * 1.8)));
+        humidityValue.textContent = `${humidity}%`;
+      }
+
+      function convertToTimezone(date, zone) {
+        const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+        const offsetMap = {
+          WIT: 9,
+          WIB: 7,
+          WITA: 8
+        };
+        const offset = offsetMap[zone] || 9;
+        return new Date(utc + (3600000 * offset));
+      }
+
+      function updateClock() {
+        const zone = timezoneSelect.value || 'WIT';
+        const now = convertToTimezone(new Date(), zone);
+        const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map(pad).join(':');
+
+        clockEl.textContent = time;
+        dateEl.textContent = now.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+
+        updateBrightness();
+        updateTemperature();
+        updateHumidity();
+      }
+
+      function updateTicker() {
+        const targetTime = targetTimeInput.value || '15:30';
+        const speed = Number(speedRange.value) || 18;
+        const message = messageInput.value.trim() || 'System Online';
+        const weight = Number(fontWeightRange.value) || 800;
+
+        targetOutput.textContent = targetTime;
+        speedOutput.textContent = `${speed}s`;
+        messageOutput.textContent = message;
+
+        const text = `${message}`;
+        tickerTrack.innerHTML = `
+          <span class="message-only">${text}</span>
+          <span class="message-only">${text}</span>
+        `;
+
+        const effectiveSpeed = Math.max(1.5, 16 - speed + 2);
+        tickerTrack.style.animationDuration = `${effectiveSpeed}s`;
+        tickerTrack.style.animationPlayState = 'running';
+        tickerTrack.style.fontWeight = weight;
+        tickerClock.style.fontWeight = weight;
+      }
+
+      settingsForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        setPanelClockFromInput();
+        updateTicker();
+        updateClock();
+      });
+
+      resetBtn.addEventListener('click', () => {
+        targetTimeInput.value = '15:30';
+        speedRange.value = '18';
+        brightnessRange.value = '75';
+        messageInput.value = 'Siaga 24 Jam • Sistem monitoring aktif';
+        setPanelClockFromInput();
+        updateTicker();
+        updateClock();
+      });
+
+      speedRange.addEventListener('input', () => {
+        targetOutput.textContent = targetTimeInput.value || '15:30';
+        const speed = Number(speedRange.value) || 18;
+        speedOutput.textContent = `${speed}s`;
+        const effectiveSpeed = Math.max(1.5, 16 - speed + 2);
+        tickerTrack.style.animationDuration = `${effectiveSpeed}s`;
+      });
+
+      brightnessRange.addEventListener('input', () => {
+        updateBrightness();
+      });
+
+      fontWeightRange.addEventListener('input', () => {
+        const weight = fontWeightRange.value;
+        tickerTrack.style.fontWeight = weight;
+        tickerClock.style.fontWeight = weight;
+      });
+
+      timezoneSelect.addEventListener('change', () => {
+        updateClock();
+      });
+
+      loginBtn.addEventListener('click', () => {
+        authOverlay.classList.remove('hidden');
+        hideAuthError();
+      });
+
+      logoutBtn.addEventListener('click', () => {
+        setLoggedState(false);
+      });
+
+      togglePasswordBtn.addEventListener('click', () => {
+        const isPasswordHidden = passwordInput.type === 'password';
+        passwordInput.type = isPasswordHidden ? 'text' : 'password';
+        togglePasswordBtn.textContent = isPasswordHidden ? 'Sembunyi' : 'Lihat';
+      });
+
+      authForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        const isValid = username === 'admin' && password === 'admin123';
+
+        if (!isValid) {
+          passwordInput.value = '';
+          passwordInput.focus();
+          passwordInput.setAttribute('aria-invalid', 'true');
+          showAuthError('Username atau password salah. Silakan coba lagi.');
+          return;
+        }
+
+        passwordInput.removeAttribute('aria-invalid');
+        hideAuthError();
+        setLoggedState(true);
+        authForm.reset();
+      });
+
+      setPanelClockFromInput();
+      setLoggedState(false);
+      updateTicker();
+      updateClock();
+      setInterval(() => {
+        updatePanelClockDisplay();
+        updateClock();
+      }, 1000);
+    </script>
+  </body>
+</html>
